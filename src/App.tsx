@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+// Enable sending cookies in cross-origin requests
+axios.defaults.withCredentials = true;
+
 function App() {
     const [email, setEmail] = useState("test@example.com");
     const [password, setPassword] = useState("Password123!");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
-    const [isPhoneLogin, setIsPhoneLogin] = useState(false);
+    const [authMode, setAuthMode] = useState<"login" | "phone" | "register">("login");
     const [otpSent, setOtpSent] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+    const [toast, setToast] = useState("");
 
     const [accessToken, setAccessToken] = useState("");
     const [sessions, setSessions] = useState<any[]>([]);
@@ -19,41 +27,111 @@ function App() {
         }
     }, [accessToken]);
 
+    // Try to refresh token on initial load
+    useEffect(() => {
+        const tryRefresh = async () => {
+            try {
+                const res = await axios.post("http://localhost:5000/api/auth/refresh");
+                setAccessToken(res.data.accessToken);
+            } catch (error) {
+                // Ignore, user is not logged in / no valid refresh token
+            }
+        };
+        tryRefresh();
+    }, []);
+
+    const showToast = (msg: string) => {
+        setToast(msg);
+        setTimeout(() => setToast(""), 3000);
+    };
+
+    const validatePassword = (pass: string) => {
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        return passwordRegex.test(pass);
+    };
+
+    const validateEmail = (mail: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(mail);
+    };
+
+    const register = async () => {
+        setErrorMsg("");
+        if (!validateEmail(email)) {
+            setErrorMsg("Invalid email format.");
+            return;
+        }
+        if (!validatePassword(password)) {
+            setErrorMsg("Password must be at least 8 characters long, contain 1 uppercase letter, 1 number, and 1 special character.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            setErrorMsg("Passwords do not match.");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await axios.post("http://localhost:5000/api/auth/register", {
+                email,
+                password,
+            });
+            setAccessToken(res.data.accessToken);
+            showToast("Registration successful!");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Registration failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const login = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
         try {
             const res = await axios.post("http://localhost:5000/api/auth/login", {
                 email,
                 password,
             });
-
             setAccessToken(res.data.accessToken);
-            // Removed alert for a smoother experience; rely on state changes
+            showToast("Welcome back!");
         } catch (error: any) {
-            alert(error.response?.data?.message || "Login failed");
+            setErrorMsg(error.response?.data?.message || "Login failed");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const sendOtp = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
         try {
             await axios.post("http://localhost:5000/api/auth/send-otp", {
                 phoneNumber,
             });
             setOtpSent(true);
-            // Silently succeed, user sees OTP field
+            showToast("OTP Sent!");
         } catch (error: any) {
-            alert(error.response?.data?.message || "Failed to send OTP");
+            setErrorMsg(error.response?.data?.message || "Failed to send OTP");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const verifyOtp = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
         try {
             const res = await axios.post(
                 "http://localhost:5000/api/auth/verify-otp",
                 { phoneNumber, otp }
             );
             setAccessToken(res.data.accessToken);
+            showToast("Login successful!");
         } catch (error: any) {
-            alert(error.response?.data?.message || "Invalid OTP");
+            setErrorMsg(error.response?.data?.message || "Invalid OTP");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -81,9 +159,10 @@ function App() {
                 },
             });
             getSessions();
+            showToast("Session revoked");
         } catch (error) {
             console.error(error);
-            alert("Failed to revoke session");
+            setErrorMsg("Failed to revoke session");
         }
     };
 
@@ -96,34 +175,76 @@ function App() {
                 },
             });
             getSessions();
+            showToast("All sessions revoked");
         } catch (error) {
             console.error(error);
-            alert("Failed to revoke all sessions");
+            setErrorMsg("Failed to revoke all sessions");
         }
     };
 
+    // Helper to render password field with toggle
+    const renderPasswordField = (value: string, onChange: (val: string) => void, placeholder: string) => (
+        <div className="password-wrapper">
+            <input
+                className="input-field"
+                type={showPassword ? "text" : "password"}
+                placeholder={placeholder}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+            />
+            <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+            >
+                {showPassword ? "Hide" : "Show"}
+            </button>
+        </div>
+    );
+
     return (
         <div className="dashboard-container">
+            {toast && <div className="toast slide-up">{toast}</div>}
+
             {!accessToken ? (
                 <div className="auth-card glass-panel">
-                    <h2 style={{ textAlign: "center" }}>Welcome Back</h2>
+                    <h2 style={{ textAlign: "center" }}>
+                        {authMode === "login" || authMode === "phone" ? "Welcome Back" : "Create Account"}
+                    </h2>
 
                     <div className="tabs">
                         <button
-                            className={`tab-button ${!isPhoneLogin ? "active" : ""}`}
-                            onClick={() => setIsPhoneLogin(false)}
+                            className={`tab-button ${authMode === "login" ? "active" : ""}`}
+                            onClick={() => {
+                                setAuthMode("login");
+                                setErrorMsg("");
+                            }}
                         >
-                            Email Login
+                            Log In
                         </button>
                         <button
-                            className={`tab-button ${isPhoneLogin ? "active" : ""}`}
-                            onClick={() => setIsPhoneLogin(true)}
+                            className={`tab-button ${authMode === "register" ? "active" : ""}`}
+                            onClick={() => {
+                                setAuthMode("register");
+                                setErrorMsg("");
+                            }}
                         >
-                            Phone Login
+                            Register
+                        </button>
+                        <button
+                            className={`tab-button ${authMode === "phone" ? "active" : ""}`}
+                            onClick={() => {
+                                setAuthMode("phone");
+                                setErrorMsg("");
+                            }}
+                        >
+                            Phone
                         </button>
                     </div>
 
-                    {!isPhoneLogin ? (
+                    {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+                    {authMode === "login" && (
                         <div className="form-group">
                             <input
                                 className="input-field"
@@ -132,18 +253,31 @@ function App() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
-                            <input
-                                className="input-field"
-                                type="password"
-                                placeholder="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                            <button className="btn btn-primary" onClick={login}>
-                                Sign In
+                            {renderPasswordField(password, setPassword, "Password")}
+                            <button className="btn btn-primary" onClick={login} disabled={isLoading}>
+                                {isLoading ? "Processing..." : "Sign In"}
                             </button>
                         </div>
-                    ) : (
+                    )}
+
+                    {authMode === "register" && (
+                        <div className="form-group">
+                            <input
+                                className="input-field"
+                                placeholder="Email Address"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                            {renderPasswordField(password, setPassword, "Password (8+ chars, 1 uppercase, 1 number, 1 special)")}
+                            {renderPasswordField(confirmPassword, setConfirmPassword, "Confirm Password")}
+                            <button className="btn btn-primary" onClick={register} disabled={isLoading}>
+                                {isLoading ? "Creating Account..." : "Register"}
+                            </button>
+                        </div>
+                    )}
+
+                    {authMode === "phone" && (
                         <div className="form-group">
                             <input
                                 className="input-field"
@@ -156,9 +290,9 @@ function App() {
                                 <button
                                     className="btn btn-primary"
                                     onClick={sendOtp}
-                                    disabled={!phoneNumber}
+                                    disabled={!phoneNumber || isLoading}
                                 >
-                                    Send OTP
+                                    {isLoading ? "Sending..." : "Send OTP"}
                                 </button>
                             ) : (
                                 <>
@@ -172,9 +306,9 @@ function App() {
                                     <button
                                         className="btn btn-primary"
                                         onClick={verifyOtp}
-                                        disabled={otp.length < 4}
+                                        disabled={otp.length < 4 || isLoading}
                                     >
-                                        Verify & Login
+                                        {isLoading ? "Verifying..." : "Verify & Login"}
                                     </button>
                                 </>
                             )}
