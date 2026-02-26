@@ -18,6 +18,7 @@ function App() {
     const [toast, setToast] = useState("");
 
     const [accessToken, setAccessToken] = useState("");
+    const [user, setUser] = useState<{ email: string, role: string } | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
 
     // Auto-fetch sessions when token changes
@@ -27,12 +28,40 @@ function App() {
         }
     }, [accessToken]);
 
+    // Axios interceptor for transparent refresh on 401
+    useEffect(() => {
+        const interceptor = axios.interceptors.response.use(
+            (response) => response,
+            async (error) => {
+                const originalRequest = error.config;
+                // Avoid intercepting the refresh endpoint itself to prevent infinite loops
+                if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && originalRequest.url !== "http://localhost:5000/api/auth/refresh") {
+                    originalRequest._retry = true;
+                    try {
+                        const res = await axios.post("http://localhost:5000/api/auth/refresh");
+                        setAccessToken(res.data.accessToken);
+                        setUser(res.data.user);
+                        originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+                        return axios(originalRequest);
+                    } catch (err) {
+                        setAccessToken("");
+                        setUser(null);
+                        return Promise.reject(err);
+                    }
+                }
+                return Promise.reject(error);
+            }
+        );
+        return () => axios.interceptors.response.eject(interceptor);
+    }, []);
+
     // Try to refresh token on initial load
     useEffect(() => {
         const tryRefresh = async () => {
             try {
                 const res = await axios.post("http://localhost:5000/api/auth/refresh");
                 setAccessToken(res.data.accessToken);
+                setUser(res.data.user);
             } catch (error) {
                 // Ignore, user is not logged in / no valid refresh token
             }
@@ -77,6 +106,7 @@ function App() {
                 password,
             });
             setAccessToken(res.data.accessToken);
+            setUser(res.data.user);
             showToast("Registration successful!");
         } catch (error: any) {
             setErrorMsg(error.response?.data?.message || "Registration failed");
@@ -94,6 +124,7 @@ function App() {
                 password,
             });
             setAccessToken(res.data.accessToken);
+            setUser(res.data.user);
             showToast("Welcome back!");
         } catch (error: any) {
             setErrorMsg(error.response?.data?.message || "Login failed");
@@ -127,6 +158,7 @@ function App() {
                 { phoneNumber, otp }
             );
             setAccessToken(res.data.accessToken);
+            setUser(res.data.user);
             showToast("Login successful!");
         } catch (error: any) {
             setErrorMsg(error.response?.data?.message || "Invalid OTP");
@@ -147,6 +179,7 @@ function App() {
             console.error(error);
             if (error.response?.status === 401 || error.response?.status === 403) {
                 setAccessToken(""); // Clear token if expired/invalid
+                setUser(null);
             }
         }
     };
@@ -166,19 +199,18 @@ function App() {
         }
     };
 
-    const revokeAll = async () => {
-        if (!window.confirm("Are you sure you want to sign out everywhere?")) return;
+
+    const logout = async () => {
         try {
-            await axios.delete("http://localhost:5000/api/auth/sessions", {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
+            await axios.post("http://localhost:5000/api/auth/logout", {}, {
+                headers: { Authorization: `Bearer ${accessToken}` }
             });
-            getSessions();
-            showToast("All sessions revoked");
+            setAccessToken("");
+            setUser(null);
+            showToast("Logged out successfully");
         } catch (error) {
             console.error(error);
-            setErrorMsg("Failed to revoke all sessions");
+            setErrorMsg("Failed to logout");
         }
     };
 
@@ -319,21 +351,24 @@ function App() {
                 <div className="glass-panel">
                     <div className="dashboard-header">
                         <div>
-                            <h2>Active Sessions</h2>
+                            <h2>Welcome, {user?.email || "User"}!</h2>
                             <p style={{ color: "var(--text-color)", opacity: 0.8, marginTop: "0.25rem" }}>
-                                Manage your devices and security
+                                Security Dashboard
                             </p>
+                            {user && (
+                                <div style={{ marginTop: "10px" }}>
+                                    <span className="status-badge status-active" style={{ textTransform: "capitalize" }}>
+                                        Role: {user.role}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         <div className="header-actions">
                             <button className="btn btn-primary" onClick={getSessions}>
                                 🔄 Refresh
                             </button>
-                            <button
-                                className="btn btn-danger-filled"
-                                onClick={revokeAll}
-                                disabled={!sessions.length}
-                            >
-                                Sign Out Everywhere
+                            <button className="btn btn-danger-filled" onClick={logout}>
+                                Logout
                             </button>
                         </div>
                     </div>
