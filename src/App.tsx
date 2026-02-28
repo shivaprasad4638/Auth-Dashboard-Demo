@@ -4,6 +4,8 @@ import axios from "axios";
 // Enable sending cookies in cross-origin requests
 axios.defaults.withCredentials = true;
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 function App() {
     const [email, setEmail] = useState("test@example.com");
     const [password, setPassword] = useState("Password123!");
@@ -35,10 +37,10 @@ function App() {
             async (error) => {
                 const originalRequest = error.config;
                 // Avoid intercepting the refresh endpoint itself to prevent infinite loops
-                if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && originalRequest.url !== "http://localhost:5000/api/auth/refresh") {
+                if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && originalRequest.url !== `${API_URL}/api/auth/refresh`) {
                     originalRequest._retry = true;
                     try {
-                        const res = await axios.post("http://localhost:5000/api/auth/refresh");
+                        const res = await axios.post(`${API_URL}/api/auth/refresh`);
                         setAccessToken(res.data.accessToken);
                         setUser(res.data.user);
                         originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
@@ -59,7 +61,7 @@ function App() {
     useEffect(() => {
         const tryRefresh = async () => {
             try {
-                const res = await axios.post("http://localhost:5000/api/auth/refresh");
+                const res = await axios.post(`${API_URL}/api/auth/refresh`);
                 setAccessToken(res.data.accessToken);
                 setUser(res.data.user);
             } catch (error) {
@@ -101,7 +103,7 @@ function App() {
 
         setIsLoading(true);
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/register", {
+            const res = await axios.post(`${API_URL}/api/auth/register`, {
                 email,
                 password,
             });
@@ -119,7 +121,7 @@ function App() {
         setErrorMsg("");
         setIsLoading(true);
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/login", {
+            const res = await axios.post(`${API_URL}/api/auth/login`, {
                 email,
                 password,
             });
@@ -137,7 +139,7 @@ function App() {
         setErrorMsg("");
         setIsLoading(true);
         try {
-            await axios.post("http://localhost:5000/api/auth/send-otp", {
+            await axios.post(`${API_URL}/api/auth/send-otp`, {
                 phoneNumber,
             });
             setOtpSent(true);
@@ -154,7 +156,7 @@ function App() {
         setIsLoading(true);
         try {
             const res = await axios.post(
-                "http://localhost:5000/api/auth/verify-otp",
+                `${API_URL}/api/auth/verify-otp`,
                 { phoneNumber, otp }
             );
             setAccessToken(res.data.accessToken);
@@ -169,7 +171,7 @@ function App() {
 
     const getSessions = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/auth/sessions", {
+            const res = await axios.get(`${API_URL}/api/auth/sessions`, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
@@ -186,7 +188,7 @@ function App() {
 
     const revokeSession = async (id: string) => {
         try {
-            await axios.delete(`http://localhost:5000/api/auth/sessions/${id}`, {
+            await axios.delete(`${API_URL}/api/auth/sessions/${id}`, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
@@ -202,7 +204,7 @@ function App() {
 
     const logout = async () => {
         try {
-            await axios.post("http://localhost:5000/api/auth/logout", {}, {
+            await axios.post(`${API_URL}/api/auth/logout`, {}, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
             setAccessToken("");
@@ -216,7 +218,7 @@ function App() {
 
     const regenerateAvatar = async () => {
         try {
-            const res = await axios.patch("http://localhost:5000/api/users/avatar/regenerate", {}, {
+            const res = await axios.patch(`${API_URL}/api/users/avatar/regenerate`, {}, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
             setUser(res.data.user);
@@ -229,7 +231,7 @@ function App() {
 
     const updateAvatarStyle = async (style: string) => {
         try {
-            const res = await axios.patch("http://localhost:5000/api/users/avatar/style", { style }, {
+            const res = await axios.patch(`${API_URL}/api/users/avatar/style`, { style }, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
             setUser(res.data.user);
