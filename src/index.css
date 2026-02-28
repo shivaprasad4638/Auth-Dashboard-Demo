@@ -407,12 +407,45 @@ h3 {
     align-items: flex-start;
   }
 
-  .header-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-
   .sessions-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Avatar Selection */
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.avatar-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  object-fit: cover;
+  background: var(--input-bg);
+}
+
+.avatar-option:hover {
+  transform: scale(1.05);
+  border-color: rgba(88, 166, 255, 0.5);
+}
+
+.avatar-option.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(88, 166, 255, 0.5);
+}
+
+.profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
 }
