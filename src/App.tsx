@@ -27,6 +27,7 @@ function App() {
     const [qrCode, setQrCode] = useState("");
     const [setup2faCode, setSetup2faCode] = useState("");
     const [show2faSetup, setShow2faSetup] = useState(false);
+    const [showRevoked, setShowRevoked] = useState(false);
 
     // Auto-fetch sessions when token changes
     useEffect(() => {
@@ -498,7 +499,7 @@ function App() {
             ) : (
                 <div className="glass-panel">
                     <div className="dashboard-header">
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', width: '100%' }}>
                             <div className="avatar-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', background: 'var(--panel-bg)', padding: '1rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                                 {user?.avatarSeed ? (
                                     <img
@@ -534,8 +535,8 @@ function App() {
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: '0.5rem' }}>
-                                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>Welcome, {user?.email || "User"}!</h2>
+                            <div style={{ marginTop: '0.5rem', minWidth: 0, flex: 1 }}>
+                                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Welcome, {user?.email || "User"}!</h2>
                                 <p style={{ color: "var(--text-color)", opacity: 0.8, marginTop: "0.25rem" }}>
                                     Security Dashboard
                                 </p>
@@ -547,7 +548,7 @@ function App() {
                                     </div>
                                 )}
                             </div>
-                            <div className="header-actions">
+                            <div className="header-actions" style={{ flexShrink: 0, marginLeft: 'auto' }}>
                                 <button className="btn btn-primary" onClick={getSessions}>
                                     🔄 Refresh
                                 </button>
@@ -557,50 +558,96 @@ function App() {
                             </div>
                         </div>
 
-                        {sessions.length === 0 ? (
-                            <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-color)" }}>
-                                <p>No active sessions found.</p>
-                            </div>
-                        ) : (
-                            <div className="sessions-grid">
-                                {sessions.map((s) => (
-                                    <div
-                                        key={s.id}
-                                        className={`session-card ${s.revokedAt ? "revoked" : "active"}`}
-                                    >
-                                        <div className={`status-badge ${s.revokedAt ? "status-revoked" : "status-active"}`}>
-                                            {s.revokedAt ? "Revoked" : "Active"}
-                                        </div>
+                        {(() => {
+                            const currentSession = sessions.find(s => s.isCurrent);
+                            const otherActive = sessions.filter(s => !s.isCurrent && !s.revokedAt);
+                            const revoked = sessions.filter(s => s.revokedAt);
+                            const recentRevoked = revoked.slice(0, 3);
 
-                                        <div className="session-detail">
-                                            <strong>Device / Browser</strong>
-                                            <span>{s.userAgent || "Unknown Device"}</span>
-                                        </div>
-
-                                        <div className="session-detail">
-                                            <strong>IP Address</strong>
-                                            <span>{s.ip}</span>
-                                        </div>
-
-                                        <div className="session-detail">
-                                            <strong>Last Login</strong>
-                                            <span>{new Date(s.createdAt).toLocaleString()}</span>
-                                        </div>
-
-                                        {!s.revokedAt && (
-                                            <div className="session-actions">
-                                                <button
-                                                    className="btn btn-danger"
-                                                    onClick={() => revokeSession(s.id)}
-                                                >
-                                                    Sign Out Device
-                                                </button>
+                            const SessionCard = ({ s, isCurrent = false }: { s: any, isCurrent?: boolean }) => (
+                                <div
+                                    key={s.id}
+                                    className={`session-card ${s.revokedAt ? 'revoked' : 'active'}`}
+                                    style={isCurrent ? { borderLeft: '3px solid #f59e0b', background: 'rgba(245,158,11,0.06)' } : {}}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            <div className={`status-badge ${s.revokedAt ? 'status-revoked' : 'status-active'}`}>
+                                                {s.revokedAt ? 'Revoked' : 'Active'}
                                             </div>
-                                        )}
+                                            {isCurrent && (
+                                                <span style={{ fontSize: '0.78rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '0.15rem 0.5rem', borderRadius: '999px', fontWeight: 600 }}>
+                                                    ⭐ This Device
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    <div className="session-detail">
+                                        <strong>Device / Browser</strong>
+                                        <span>{s.userAgent || 'Unknown Device'}</span>
+                                    </div>
+                                    <div className="session-detail">
+                                        <strong>IP Address</strong>
+                                        <span>{s.ip}</span>
+                                    </div>
+                                    <div className="session-detail">
+                                        <strong>Last Login</strong>
+                                        <span>{new Date(s.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    {!s.revokedAt && !isCurrent && (
+                                        <div className="session-actions">
+                                            <button className="btn btn-danger" onClick={() => revokeSession(s.id)}>
+                                                Sign Out Device
+                                            </button>
+                                        </div>
+                                    )}
+                                    {isCurrent && (
+                                        <p style={{ fontSize: '0.8rem', opacity: 0.5, marginTop: '0.5rem' }}>You cannot revoke your current session here. Use Logout instead.</p>
+                                    )}
+                                </div>
+                            );
+
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
+                                    {currentSession && (
+                                        <div>
+                                            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, marginBottom: '0.75rem' }}>📍 Current Session</h3>
+                                            <SessionCard s={currentSession} isCurrent={true} />
+                                        </div>
+                                    )}
+                                    {otherActive.length > 0 && (
+                                        <div>
+                                            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.5, marginBottom: '0.75rem' }}>🖥️ Other Active Sessions ({otherActive.length})</h3>
+                                            <div className="sessions-grid">
+                                                {otherActive.map(s => <SessionCard key={s.id} s={s} />)}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {revoked.length > 0 && (
+                                        <div>
+                                            <button
+                                                onClick={() => setShowRevoked(v => !v)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-color)', opacity: 0.55, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: 0 }}
+                                            >
+                                                {showRevoked ? '▾' : '▸'} Revoked Sessions ({revoked.length})
+                                            </button>
+                                            {showRevoked && (
+                                                <div className="sessions-grid" style={{ marginTop: '0.75rem' }}>
+                                                    {recentRevoked.map(s => <SessionCard key={s.id} s={s} />)}
+                                                    {revoked.length > 3 && (
+                                                        <p style={{ fontSize: '0.8rem', opacity: 0.4, padding: '0.5rem' }}>+ {revoked.length - 3} older revoked sessions not shown.</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {sessions.length === 0 && (
+                                        <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>No sessions found.</div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
 
                         {/* ── 2FA Security Panel ── */}
                         <div style={{ marginTop: '1.5rem', background: 'var(--panel-bg)', borderRadius: '1rem', padding: '1.25rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
