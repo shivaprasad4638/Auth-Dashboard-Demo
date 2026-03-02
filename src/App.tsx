@@ -499,7 +499,7 @@ function App() {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', maxWidth: '1000px', margin: '0 auto' }}>
 
-                    {/* â”€â”€ PANEL 1: Profile â”€â”€ */}
+                    {/* PANEL 1: Profile */}
                     <div className="glass-panel" style={{ padding: '1.5rem 2rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', width: '100%' }}>
 
@@ -514,10 +514,10 @@ function App() {
                                         onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
                                     />
                                 ) : (
-                                    <div style={{ width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-bg)', fontSize: '2rem' }}>ðŸ‘¤</div>
+                                    <div style={{ width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-bg)', fontSize: '2rem' }}>&#128100;</div>
                                 )}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
-                                    <button className="btn btn-sm btn-secondary" onClick={regenerateAvatar} style={{ fontSize: '0.78rem' }}>ðŸŽ² Regenerate</button>
+                                    <button className="btn btn-sm btn-secondary" onClick={regenerateAvatar} style={{ fontSize: '0.78rem' }}>Regenerate</button>
                                     <select
                                         className="input-field"
                                         style={{ padding: '0.3rem 0.5rem', fontSize: '0.78rem', marginBottom: 0 }}
@@ -545,13 +545,13 @@ function App() {
 
                             {/* Action cluster */}
                             <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
-                                <button className="btn btn-sm btn-secondary" onClick={getSessions}>ðŸ”„ Refresh Sessions</button>
+                                <button className="btn btn-sm btn-secondary" onClick={getSessions}>Refresh Sessions</button>
                                 <button className="btn btn-sm btn-danger-filled" onClick={logout}>Sign Out</button>
                             </div>
                         </div>
                     </div>
 
-                    {/* â”€â”€ PANEL 2: Sessions â”€â”€ */}
+                    {/* PANEL 2: Sessions */}
                     <div className="glass-panel" style={{ padding: '1.5rem 2rem' }}>
                         {(() => {
                             const currentSession = sessions.find(s => s.isCurrent);
@@ -563,15 +563,16 @@ function App() {
                                     className={`session-card ${s.revokedAt ? 'revoked' : 'active'}`}
                                     style={isCurrent ? { borderLeftColor: '#f59e0b', background: 'rgba(245,158,11,0.05)' } : {}}
                                 >
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                                        <span className={`status-badge ${s.revokedAt ? 'status-revoked' : 'status-active'}`}>
-                                            {s.revokedAt ? 'Revoked' : 'Active'}
-                                        </span>
+                                    {/* Badge row — top right */}
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
                                         {isCurrent && (
-                                            <span style={{ fontSize: '0.75rem', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '0.15rem 0.6rem', borderRadius: '999px', fontWeight: 600 }}>
-                                                â­ This Device
+                                            <span style={{ fontSize: '0.72rem', background: 'rgba(245,158,11,0.12)', color: '#f59e0b', padding: '0.12rem 0.5rem', borderRadius: '999px', fontWeight: 600, letterSpacing: '0.02em' }}>
+                                                This Device
                                             </span>
                                         )}
+                                        <span className={`status-badge ${s.revokedAt ? 'status-revoked' : 'status-active'}`} style={{ fontSize: '0.7rem' }}>
+                                            {s.revokedAt ? 'Revoked' : 'Active'}
+                                        </span>
                                     </div>
                                     <div className="session-detail">
                                         <strong>Device / Browser</strong>
@@ -579,7 +580,7 @@ function App() {
                                     </div>
                                     <div className="session-detail">
                                         <strong>IP Address</strong>
-                                        <span>{s.ip || 'â€”'}</span>
+                                        <span>{s.ip || '-'}</span>
                                     </div>
                                     <div className="session-detail">
                                         <strong>Login Time</strong>
@@ -591,45 +592,51 @@ function App() {
                                         </div>
                                     )}
                                     {isCurrent && (
-                                        <p style={{ fontSize: '0.78rem', opacity: 0.4, marginTop: '0.5rem', fontStyle: 'italic' }}>Use "Sign Out" above to end this session.</p>
+                                        <p style={{ fontSize: '0.78rem', opacity: 0.35, marginTop: '0.5rem', fontStyle: 'italic' }}>Use &ldquo;Sign Out&rdquo; above to end this session.</p>
                                     )}
                                 </div>
                             );
 
                             return (
                                 <>
-                                    {/* Section: Current */}
+                                    {/* Current Session */}
                                     {currentSession && (
                                         <div className="dashboard-section">
-                                            <p className="section-label">ðŸ“ Current Session</p>
+                                            <p className="section-label">Current Session</p>
                                             <SessionCard s={currentSession} isCurrent={true} />
                                         </div>
                                     )}
 
-                                    {/* Section: Other Active */}
+                                    {/* Other Active Sessions */}
                                     {otherActive.length > 0 && (
                                         <div className="dashboard-section" style={{ marginTop: currentSession ? '1.5rem' : 0 }}>
-                                            <p className="section-label">ðŸ–¥ï¸ Other Active Sessions &nbsp;<span style={{ background: 'rgba(88,166,255,0.15)', color: 'var(--primary)', padding: '0.1rem 0.5rem', borderRadius: '999px', fontWeight: 700 }}>{otherActive.length}</span></p>
-                                            <div className="sessions-grid">
+                                            <p className="section-label">
+                                                Other Active Sessions{' '}
+                                                <span style={{ background: 'rgba(88,166,255,0.15)', color: 'var(--primary)', padding: '0.1rem 0.45rem', borderRadius: '999px', fontWeight: 700 }}>
+                                                    {otherActive.length}
+                                                </span>
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                 {otherActive.map(s => <SessionCard key={s.id} s={s} />)}
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Section: Revoked (collapsible) */}
+                                    {/* Revoked Sessions (collapsible) */}
                                     {revoked.length > 0 && (
                                         <div style={{ marginTop: '1.5rem' }}>
                                             <button
                                                 onClick={() => setShowRevoked(v => !v)}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: 0 }}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
                                             >
-                                                <span className="section-label" style={{ marginBottom: 0 }}>{showRevoked ? 'â–¾' : 'â–¸'} Show revoked sessions</span>
+                                                <span style={{ fontSize: '0.65rem', opacity: 0.4, transition: 'transform 0.2s', display: 'inline-block', transform: showRevoked ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9658;</span>
+                                                <span className="section-label" style={{ marginBottom: 0 }}>Show revoked sessions</span>
                                             </button>
                                             {showRevoked && (
-                                                <div className="sessions-grid" style={{ marginTop: '0.75rem' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
                                                     {revoked.slice(0, 3).map(s => <SessionCard key={s.id} s={s} />)}
                                                     {revoked.length > 3 && (
-                                                        <p style={{ fontSize: '0.8rem', opacity: 0.35, padding: '0.5rem 0' }}>+ {revoked.length - 3} older entries hidden.</p>
+                                                        <p style={{ fontSize: '0.8rem', opacity: 0.35, padding: '0.25rem 0' }}>+ {revoked.length - 3} older entries hidden.</p>
                                                     )}
                                                 </div>
                                             )}
@@ -637,40 +644,50 @@ function App() {
                                     )}
 
                                     {sessions.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.4 }}>No sessions found. Try refreshing.</div>
+                                        <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.4 }}>No sessions found. Click Refresh to load.</div>
                                     )}
                                 </>
                             );
                         })()}
                     </div>
 
-                    {/* â”€â”€ PANEL 3: Security Settings â”€â”€ */}
+                    {/* PANEL 3: Security Settings */}
                     <div className="glass-panel" style={{ padding: '1.5rem 2rem' }}>
-                        <p className="section-label">ðŸ”’ Security Settings</p>
+                        <p className="section-label">Security Settings</p>
 
                         {/* 2FA row */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1 }}>
                                 <h3 style={{ fontSize: '1rem', marginBottom: '0.3rem' }}>Two-Factor Authentication</h3>
-                                <p style={{ fontSize: '0.85rem', opacity: 0.55, marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.85rem', opacity: 0.5, marginBottom: '0.5rem', lineHeight: 1.5 }}>
                                     {user?.twoFactorEnabled
-                                        ? '2FA is active. Your account requires a code on each login.'
-                                        : 'Add an extra layer of security using an authenticator app.'}
+                                        ? 'Your account is protected. A code from your authenticator app is required at each login.'
+                                        : 'Add a second layer of security. You will need an authenticator app like Google Authenticator or Authy.'}
                                 </p>
                                 <span style={{
-                                    display: 'inline-block', fontSize: '0.78rem', fontWeight: 700,
-                                    padding: '0.2rem 0.7rem', borderRadius: '999px',
-                                    background: user?.twoFactorEnabled ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.1)',
+                                    display: 'inline-block', fontSize: '0.75rem', fontWeight: 700,
+                                    padding: '0.2rem 0.65rem', borderRadius: '999px',
+                                    background: user?.twoFactorEnabled ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.08)',
                                     color: user?.twoFactorEnabled ? 'var(--success-text)' : 'var(--danger)',
-                                    border: `1px solid ${user?.twoFactorEnabled ? 'var(--success-border)' : 'var(--danger)'}`,
+                                    border: `1px solid ${user?.twoFactorEnabled ? 'var(--success-border)' : 'rgba(248,81,73,0.4)'}`,
                                 }}>
-                                    {user?.twoFactorEnabled ? 'Protected' : 'Not Protected'}
+                                    {user?.twoFactorEnabled ? 'Protected' : 'Protection Disabled'}
                                 </span>
                             </div>
-                            <div style={{ flexShrink: 0 }}>
+                            <div style={{ flexShrink: 0, paddingTop: '0.15rem' }}>
                                 {!user?.twoFactorEnabled && !show2faSetup && (
-                                    <button className="btn btn-sm btn-primary" onClick={enable2fa} disabled={isLoading}>
-                                        {isLoading ? 'Generating...' : 'ðŸ›¡ï¸ Enable Protection'}
+                                    <button
+                                        className="btn btn-sm"
+                                        onClick={enable2fa}
+                                        disabled={isLoading}
+                                        style={{
+                                            background: '#1a7f4b',
+                                            color: '#fff',
+                                            border: '1px solid rgba(46,160,67,0.4)',
+                                            boxShadow: '0 0 12px rgba(46,160,67,0.25)',
+                                        }}
+                                    >
+                                        {isLoading ? 'Generating...' : 'Enable Protection'}
                                     </button>
                                 )}
                                 {user?.twoFactorEnabled && (
@@ -684,7 +701,7 @@ function App() {
                         {/* QR Setup flow */}
                         {show2faSetup && qrCode && (
                             <div className="slide-up" style={{ marginTop: '1.25rem', padding: '1.25rem', background: 'var(--panel-bg)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-start' }}>
-                                <p style={{ fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.85 }}>
+                                <p style={{ fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.8 }}>
                                     Open <strong>Google Authenticator</strong> or <strong>Authy</strong>, scan the QR code, then enter the 6-digit code to activate.
                                 </p>
                                 <img src={qrCode} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: '0.5rem', background: '#fff', padding: 8 }} />
@@ -699,7 +716,7 @@ function App() {
                                 />
                                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                                     <button className="btn btn-sm btn-primary" onClick={confirm2fa} disabled={setup2faCode.length !== 6 || isLoading}>
-                                        {isLoading ? 'Verifying...' : 'âœ… Activate 2FA'}
+                                        {isLoading ? 'Verifying...' : 'Activate 2FA'}
                                     </button>
                                     <button className="btn btn-sm btn-secondary" onClick={() => { setShow2faSetup(false); setQrCode(''); setSetup2faCode(''); }}>
                                         Cancel
