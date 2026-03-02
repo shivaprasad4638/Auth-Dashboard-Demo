@@ -13,7 +13,9 @@ function App() {
     const [showPassword, setShowPassword] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
-    const [authMode, setAuthMode] = useState<"login" | "phone" | "register">("login");
+    const [twoFaCode, setTwoFaCode] = useState("");
+    const [tempToken, setTempToken] = useState("");
+    const [authMode, setAuthMode] = useState<"login" | "phone" | "register" | "2fa">("login");
     const [otpSent, setOtpSent] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
@@ -125,11 +127,39 @@ function App() {
                 email,
                 password,
             });
-            setAccessToken(res.data.accessToken);
-            setUser(res.data.user);
-            showToast("Welcome back!");
+
+            if (res.data.twoFactorRequired) {
+                setTempToken(res.data.tempToken);
+                setAuthMode("2fa");
+                showToast("2FA Required");
+            } else {
+                setAccessToken(res.data.accessToken);
+                setUser(res.data.user);
+                showToast("Welcome back!");
+            }
         } catch (error: any) {
             setErrorMsg(error.response?.data?.message || "Login failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const verify2Fa = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/api/auth/2fa/login`, {
+                tempToken,
+                code: twoFaCode,
+            });
+            setAccessToken(res.data.accessToken);
+            setUser(res.data.user);
+            setTempToken("");
+            setTwoFaCode("");
+            setAuthMode("login");
+            showToast("Welcome back!");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Invalid 2FA code");
         } finally {
             setIsLoading(false);
         }
@@ -303,6 +333,39 @@ function App() {
                     </div>
 
                     {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+                    {authMode === "2fa" && (
+                        <div className="form-group slide-up">
+                            <p style={{ textAlign: "center", marginBottom: "1rem" }}>
+                                Enter the 6-digit code from your authenticator app.
+                            </p>
+                            <input
+                                className="input-field"
+                                placeholder="6-digit code"
+                                type="text"
+                                maxLength={6}
+                                value={twoFaCode}
+                                onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                            />
+                            <button
+                                className="btn btn-primary"
+                                onClick={verify2Fa}
+                                disabled={twoFaCode.length !== 6 || isLoading}
+                            >
+                                {isLoading ? "Verifying..." : "Verify"}
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    setAuthMode("login");
+                                    setTempToken("");
+                                }}
+                                style={{ marginTop: "0.5rem" }}
+                            >
+                                Back to Login
+                            </button>
+                        </div>
+                    )}
 
                     {authMode === "login" && (
                         <div className="form-group">
