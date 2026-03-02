@@ -22,8 +22,11 @@ function App() {
     const [toast, setToast] = useState("");
 
     const [accessToken, setAccessToken] = useState("");
-    const [user, setUser] = useState<{ email: string, role: string, avatarSeed?: string, avatarStyle?: string } | null>(null);
+    const [user, setUser] = useState<{ email: string, role: string, avatarSeed?: string, avatarStyle?: string, twoFactorEnabled?: boolean } | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
+    const [qrCode, setQrCode] = useState("");
+    const [setup2faCode, setSetup2faCode] = useState("");
+    const [show2faSetup, setShow2faSetup] = useState(false);
 
     // Auto-fetch sessions when token changes
     useEffect(() => {
@@ -239,10 +242,64 @@ function App() {
             });
             setAccessToken("");
             setUser(null);
+            setQrCode("");
+            setShow2faSetup(false);
             showToast("Logged out successfully");
         } catch (error) {
             console.error(error);
             setErrorMsg("Failed to logout");
+        }
+    };
+
+    const enable2fa = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/api/auth/2fa/enable`, {}, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            setQrCode(res.data.qrCode);
+            setShow2faSetup(true);
+            showToast("Scan the QR code with your authenticator app!");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Failed to start 2FA setup");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const confirm2fa = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
+        try {
+            await axios.post(`${API_URL}/api/auth/2fa/confirm`, { code: setup2faCode }, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            setUser(prev => prev ? { ...prev, twoFactorEnabled: true } : prev);
+            setQrCode("");
+            setShow2faSetup(false);
+            setSetup2faCode("");
+            showToast("2FA enabled successfully! 🔐");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Invalid code. Try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const disable2fa = async () => {
+        setErrorMsg("");
+        setIsLoading(true);
+        try {
+            await axios.delete(`${API_URL}/api/auth/2fa/disable`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            setUser(prev => prev ? { ...prev, twoFactorEnabled: false } : prev);
+            showToast("2FA disabled.");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Failed to disable 2FA");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -544,6 +601,50 @@ function App() {
                                 ))}
                             </div>
                         )}
+
+                        {/* ── 2FA Security Panel ── */}
+                        <div style={{ marginTop: '1.5rem', background: 'var(--panel-bg)', borderRadius: '1rem', padding: '1.25rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                            <h3 style={{ marginBottom: '0.75rem', fontSize: '1.1rem' }}>🔐 Two-Factor Authentication</h3>
+                            <p style={{ opacity: 0.7, fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                Status: <strong>{user?.twoFactorEnabled ? '✅ Enabled' : '❌ Disabled'}</strong>
+                            </p>
+
+                            {!user?.twoFactorEnabled && !show2faSetup && (
+                                <button className="btn btn-primary" onClick={enable2fa} disabled={isLoading}>
+                                    {isLoading ? 'Generating...' : '🛡️ Enable 2FA'}
+                                </button>
+                            )}
+
+                            {show2faSetup && qrCode && (
+                                <div className="slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-start' }}>
+                                    <p style={{ fontSize: '0.9rem', opacity: 0.85 }}>Scan this QR code with <strong>Google Authenticator</strong> or <strong>Authy</strong>, then enter the 6-digit code below to activate 2FA.</p>
+                                    <img src={qrCode} alt="2FA QR Code" style={{ width: 180, height: 180, borderRadius: '0.5rem', background: '#fff', padding: 8 }} />
+                                    <input
+                                        className="input-field"
+                                        placeholder="Enter 6-digit code to confirm"
+                                        type="text"
+                                        maxLength={6}
+                                        value={setup2faCode}
+                                        onChange={(e) => setSetup2faCode(e.target.value.replace(/\D/g, ''))}
+                                        style={{ maxWidth: 220 }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                        <button className="btn btn-primary" onClick={confirm2fa} disabled={setup2faCode.length !== 6 || isLoading}>
+                                            {isLoading ? 'Verifying...' : '✅ Confirm & Enable'}
+                                        </button>
+                                        <button className="btn btn-secondary" onClick={() => { setShow2faSetup(false); setQrCode(''); setSetup2faCode(''); }}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {user?.twoFactorEnabled && (
+                                <button className="btn btn-danger" onClick={disable2fa} disabled={isLoading} style={{ marginTop: '0.5rem' }}>
+                                    {isLoading ? 'Disabling...' : '🗑️ Disable 2FA'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
