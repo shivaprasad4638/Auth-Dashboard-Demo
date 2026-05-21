@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 // Enable sending cookies in cross-origin requests
@@ -15,11 +15,17 @@ function App() {
     const [otp, setOtp] = useState("");
     const [twoFaCode, setTwoFaCode] = useState("");
     const [tempToken, setTempToken] = useState("");
-    const [authMode, setAuthMode] = useState<"login" | "phone" | "register" | "2fa">("login");
+    const [authMode, setAuthMode] = useState<"login" | "phone" | "register" | "2fa" | "forgot-password" | "reset-password">("login");
     const [otpSent, setOtpSent] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [toast, setToast] = useState("");
+    
+    // Forgot / Reset Password states
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [resetToken, setResetToken] = useState("");
+    const [simulatedEmail, setSimulatedEmail] = useState<{ to: string; token: string; link: string } | null>(null);
 
     const [accessToken, setAccessToken] = useState("");
     const [user, setUser] = useState<{ email: string, role: string, avatarSeed?: string, avatarStyle?: string, twoFactorEnabled?: boolean } | null>(null);
@@ -142,7 +148,79 @@ function App() {
                 showToast("Welcome back!");
             }
         } catch (error: any) {
-            setErrorMsg(error.response?.data?.message || "Login failed");
+            const msg = error.response?.data?.message || "Login failed";
+            setErrorMsg(msg);
+            if (msg.toLowerCase().includes("credentials") || msg.toLowerCase().includes("invalid")) {
+                showToast("Email or password is incorrect");
+            } else {
+                showToast(msg);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const requestPasswordReset = async () => {
+        setErrorMsg("");
+        if (!validateEmail(email)) {
+            setErrorMsg("Invalid email format.");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/api/auth/forgot-password`, {
+                email,
+            });
+            if (res.data.mockSent) {
+                const token = res.data.token;
+                const link = `${window.location.origin}/reset-password?token=${token}`;
+                setSimulatedEmail({
+                    to: email,
+                    token: token,
+                    link: link
+                });
+                showToast("Simulated reset email sent!");
+            } else {
+                showToast(res.data.message);
+            }
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Failed to request password reset");
+            showToast("Failed to request password reset");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const executePasswordReset = async () => {
+        setErrorMsg("");
+        if (!resetToken.trim()) {
+            setErrorMsg("Reset token is required.");
+            return;
+        }
+        if (!validatePassword(newPassword)) {
+            setErrorMsg("Password must be at least 8 characters long, contain 1 uppercase letter, 1 number, and 1 special character.");
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            setErrorMsg("Passwords do not match.");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/api/auth/reset-password`, {
+                token: resetToken,
+                password: newPassword,
+            });
+            showToast(res.data.message || "Password reset successfully!");
+            // Reset states and switch to login
+            setResetToken("");
+            setNewPassword("");
+            setConfirmNewPassword("");
+            setAuthMode("login");
+        } catch (error: any) {
+            setErrorMsg(error.response?.data?.message || "Password reset failed");
+            showToast("Password reset failed");
         } finally {
             setIsLoading(false);
         }
@@ -354,41 +432,97 @@ function App() {
         <div className="dashboard-container">
             {toast && <div className="toast slide-up">{toast}</div>}
 
+            {simulatedEmail && (
+                <div className="modal-backdrop">
+                    <div className="modal-content glass-panel slide-up">
+                        <div className="modal-header">
+                            <span className="dot red"></span>
+                            <span className="dot yellow"></span>
+                            <span className="dot green"></span>
+                            <span className="modal-title">Simulated Mailbox — Password Reset</span>
+                        </div>
+                        <div className="email-container">
+                            <div className="email-meta">
+                                <p><strong>From:</strong> security@secureauth.com</p>
+                                <p><strong>To:</strong> {simulatedEmail.to}</p>
+                                <p><strong>Subject:</strong> Reset your SecureAuth password</p>
+                            </div>
+                            <div className="email-body">
+                                <h3 style={{ color: "var(--primary)", marginTop: "0.5rem" }}>Password Reset Request</h3>
+                                <p style={{ lineHeight: 1.5, margin: "1rem 0" }}>We received a request to reset your password. Click the button below to set a new password. This link is valid for 15 minutes.</p>
+                                <div style={{ margin: "1.5rem 0", textAlign: "center" }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ width: "auto", display: "inline-block", padding: "0.75rem 2rem" }}
+                                        onClick={() => {
+                                            setResetToken(simulatedEmail.token);
+                                            setAuthMode("reset-password");
+                                            setSimulatedEmail(null);
+                                            showToast("Token pre-filled. Set your new password.");
+                                        }}
+                                    >
+                                        Reset Password
+                                    </button>
+                                </div>
+                                <p className="token-text" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
+                                    <strong>Alternative Token:</strong> <code style={{ background: "rgba(255,255,255,0.1)", padding: "0.2rem 0.4rem", borderRadius: "4px", color: "var(--primary)" }}>{simulatedEmail.token}</code>
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ marginTop: "1.5rem", alignSelf: "flex-end" }}
+                            onClick={() => setSimulatedEmail(null)}
+                        >
+                            Close Simulated Mailbox
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {!accessToken ? (
                 <div className="auth-card glass-panel">
                     <h2 style={{ textAlign: "center" }}>
-                        {authMode === "login" || authMode === "phone" ? "Welcome Back" : "Create Account"}
+                        {authMode === "login" || authMode === "phone"
+                            ? "Welcome Back"
+                            : authMode === "forgot-password"
+                            ? "Forgot Password"
+                            : authMode === "reset-password"
+                            ? "Reset Password"
+                            : "Create Account"}
                     </h2>
 
-                    <div className="tabs">
-                        <button
-                            className={`tab-button ${authMode === "login" ? "active" : ""}`}
-                            onClick={() => {
-                                setAuthMode("login");
-                                setErrorMsg("");
-                            }}
-                        >
-                            Log In
-                        </button>
-                        <button
-                            className={`tab-button ${authMode === "register" ? "active" : ""}`}
-                            onClick={() => {
-                                setAuthMode("register");
-                                setErrorMsg("");
-                            }}
-                        >
-                            Register
-                        </button>
-                        <button
-                            className={`tab-button ${authMode === "phone" ? "active" : ""}`}
-                            onClick={() => {
-                                setAuthMode("phone");
-                                setErrorMsg("");
-                            }}
-                        >
-                            Phone
-                        </button>
-                    </div>
+                    {authMode !== "forgot-password" && authMode !== "reset-password" && (
+                        <div className="tabs">
+                            <button
+                                className={`tab-button ${authMode === "login" ? "active" : ""}`}
+                                onClick={() => {
+                                    setAuthMode("login");
+                                    setErrorMsg("");
+                                }}
+                            >
+                                Log In
+                            </button>
+                            <button
+                                className={`tab-button ${authMode === "register" ? "active" : ""}`}
+                                onClick={() => {
+                                    setAuthMode("register");
+                                    setErrorMsg("");
+                                }}
+                            >
+                                Register
+                            </button>
+                            <button
+                                className={`tab-button ${authMode === "phone" ? "active" : ""}`}
+                                onClick={() => {
+                                    setAuthMode("phone");
+                                    setErrorMsg("");
+                                }}
+                            >
+                                Phone
+                            </button>
+                        </div>
+                    )}
 
                     {errorMsg && <div className="error-message">{errorMsg}</div>}
 
@@ -434,7 +568,29 @@ function App() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
-                            {renderPasswordField(password, setPassword, "Password")}
+                            <div>
+                                {renderPasswordField(password, setPassword, "Password")}
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        className="link-btn"
+                                        onClick={() => {
+                                            setAuthMode("forgot-password");
+                                            setErrorMsg("");
+                                        }}
+                                        style={{
+                                            background: "none",
+                                            border: "none",
+                                            color: "var(--primary)",
+                                            cursor: "pointer",
+                                            fontSize: "0.85rem",
+                                            padding: 0
+                                        }}
+                                    >
+                                        Forgot Password?
+                                    </button>
+                                </div>
+                            </div>
                             <button className="btn btn-primary" onClick={login} disabled={isLoading}>
                                 {isLoading ? "Processing..." : "Sign In"}
                             </button>
@@ -493,6 +649,65 @@ function App() {
                                     </button>
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {authMode === "forgot-password" && (
+                        <div className="form-group">
+                            <p style={{ fontSize: "0.9rem", opacity: 0.8, lineHeight: 1.5, textAlign: "center" }}>
+                                Enter your email address below, and we'll transmit a secure link to reset your password.
+                            </p>
+                            <input
+                                className="input-field"
+                                placeholder="Email Address"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                            <button className="btn btn-primary" onClick={requestPasswordReset} disabled={isLoading}>
+                                {isLoading ? "Sending request..." : "Send Reset Link"}
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    setAuthMode("login");
+                                    setErrorMsg("");
+                                }}
+                            >
+                                Back to Log In
+                            </button>
+                        </div>
+                    )}
+
+                    {authMode === "reset-password" && (
+                        <div className="form-group">
+                            <p style={{ fontSize: "0.9rem", opacity: 0.8, lineHeight: 1.5, textAlign: "center" }}>
+                                Enter the verification token and your new password.
+                            </p>
+                            <input
+                                className="input-field"
+                                placeholder="Verification Token"
+                                type="text"
+                                value={resetToken}
+                                onChange={(e) => setResetToken(e.target.value)}
+                            />
+                            {renderPasswordField(newPassword, setNewPassword, "New Password (8+ chars, 1 uppercase, 1 number, 1 special)")}
+                            {renderPasswordField(confirmNewPassword, setConfirmNewPassword, "Confirm New Password")}
+                            <button className="btn btn-primary" onClick={executePasswordReset} disabled={isLoading}>
+                                {isLoading ? "Updating password..." : "Reset Password"}
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    setAuthMode("login");
+                                    setErrorMsg("");
+                                    setResetToken("");
+                                    setNewPassword("");
+                                    setConfirmNewPassword("");
+                                }}
+                            >
+                                Back to Log In
+                            </button>
                         </div>
                     )}
                 </div>
